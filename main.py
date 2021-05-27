@@ -1,11 +1,14 @@
+from discord import activity, client
+from discord.ext import commands
 import discord
 import os
 
 ROOT = os.path.dirname(__file__)
+TOKEN = input('please token here: ')
+bot = commands.Bot(command_prefix='srb ')
 
-# TOKEN 読み込み
-with open(ROOT + '/meta/token.txt') as f:
-    TOKEN = f.read()
+@bot.event
+async def on_ready():
+    await bot.change_presence(activity=discord.Game(name='\'srb help\''))
 
-print(ROOT)
-print(TOKEN)
+bot.run(TOKEN)
