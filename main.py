@@ -23,11 +23,12 @@ async def on_voice_state_update(member, before, after):
     user = member.name
     beforeState = before.channel
     afterState = after.channel
+    guildID = str(member.guild.id)
 
     # 関係ないステータス更新は記録しない
     if beforeState == afterState: return
     
-    with open(ROOT+'/log/voiceStateLog.csv', 'a', encoding='utf-8') as f:
+    with open(ROOT+'/log/voiceStateLog/'+ guildID +'.csv', 'a', encoding='utf-8') as f:
         writer = csv.writer(f)
         # log/voiceStateLog.csv のフォーマットは [ユーザー名, 遷移前のボイチャ名, 遷移後のボイチャ名, 遷移した時間]
         writer.writerow([user, str(beforeState), str(afterState), str(int(time.time()))])
