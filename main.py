@@ -1,16 +1,17 @@
+from asyncio import tasks
 from json import load
-from discord import activity, client
+from discord import activity, channel, client
 from discord.ext import commands
 
+import json
 import csv
 import time
 import discord
 import os
 
-
-ROOT = os.path.dirname(__file__)
 TOKEN = input('please token here: ')
 INTENTS = discord.Intents.all()
+ROOT = os.path.dirname(__file__)
 
 bot = commands.Bot(command_prefix='srb ', intents=INTENTS)
 
@@ -25,7 +26,6 @@ def loadCogs():
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game(name='srb help をチャットに入力!'))
-
 
 # VoiceStatus を監視するevent
 @bot.event
@@ -42,7 +42,6 @@ async def on_voice_state_update(member, before, after):
         writer = csv.writer(f)
         # log/voiceStateLog.csv のフォーマットは [ユーザー名, 遷移前のボイチャ名, 遷移後のボイチャ名, 遷移した時間]
         writer.writerow([user, str(beforeState), str(afterState), str(int(time.time()))])
-
 
 loadCogs()
 bot.run(TOKEN)

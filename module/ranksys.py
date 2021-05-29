@@ -7,12 +7,12 @@ class RankSys:
 
     # 自習室ランクの情報をアップデート
     @staticmethod
-    def updateRank(ctx):
+    def updateRank(guild):
         root = os.path.dirname(__file__)[:-7]
         with open(root + '/bot.conf', 'r', encoding='utf-8')as f:
             config = json.loads(f.read())
 
-        guildID = str(ctx.guild.id)
+        guildID = str(guild.id)
         logPath = root + '/log/voiceStateLog/' + guildID + '.csv'
         aggregate = dict()
         activity = dict()
