@@ -1,3 +1,4 @@
+from json import load
 from discord import activity, client
 from discord.ext import commands
 
@@ -6,10 +7,19 @@ import time
 import discord
 import os
 
-# 疑似定数
+
 ROOT = os.path.dirname(__file__)
 TOKEN = input('please token here: ')
-bot = commands.Bot(command_prefix='srb ')
+INTENTS = discord.Intents.all()
+
+bot = commands.Bot(command_prefix='srb ', intents=INTENTS)
+
+# Cog の読み込み
+def loadCogs():
+    cogs = os.listdir(ROOT + '/cog')
+    for cog in cogs:
+        if(cog[len(cog)-3:] == '.py'):
+            bot.load_extension('cog.' + str(cog[:-3]))
 
 # 初期化
 @bot.event
@@ -33,4 +43,6 @@ async def on_voice_state_update(member, before, after):
         # log/voiceStateLog.csv のフォーマットは [ユーザー名, 遷移前のボイチャ名, 遷移後のボイチャ名, 遷移した時間]
         writer.writerow([user, str(beforeState), str(afterState), str(int(time.time()))])
 
+
+loadCogs()
 bot.run(TOKEN)
