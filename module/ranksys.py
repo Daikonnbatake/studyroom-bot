@@ -42,7 +42,7 @@ class RankSys:
                     if userName in aggregate: aggregate[userName].append([beforeSt, afterSt, timeStamp])
                     else:
                         aggregate[userName] = [[beforeSt, afterSt, timeStamp]]
-                        activity[userName] = [0]*7
+                        activity[userName] = {'activity':[0]*7, 'old':'', 'now':''}
                 afterLog.append([userName, beforeSt, afterSt, timeStamp])
 
             # ユーザーごとのアクティビティの時間を求める
@@ -61,7 +61,7 @@ class RankSys:
 
                     elif activ and (beforeSt in enable):
                         r = timeStamp
-                        activity[userName][logindex] += r-l
+                        activity[userName]['activity'][logindex] += r-l
                         activ = False
                     
                     else:
