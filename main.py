@@ -1,6 +1,7 @@
 from discord.ext import commands
 
 import csv
+import json
 import time
 import discord
 import os
@@ -8,6 +9,9 @@ import os
 TOKEN = input('please token here: ')
 INTENTS = discord.Intents.all()
 ROOT = os.path.dirname(__file__)
+
+with open(ROOT + '/bot.conf', 'r', encoding='utf-8') as f:
+    CONFIG = json.loads(f.read())
 
 bot = commands.Bot(command_prefix='srb ', intents=INTENTS)
 
@@ -22,6 +26,14 @@ def loadCogs():
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.Game(name='srb help をチャットに入力!'))
+
+# 単語に反応するおまけ要素
+@bot.event
+async def on_message(message):
+    phrase = CONFIG['phrase']
+    if message.content in phrase:
+        await message.channel.send(phrase[message.content])
+    await bot.process_commands(message)
 
 # VoiceStatus を監視するevent
 @bot.event
