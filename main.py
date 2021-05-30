@@ -1,9 +1,5 @@
-from asyncio import tasks
-from json import load
-from discord import activity, channel, client
 from discord.ext import commands
 
-import json
 import csv
 import time
 import discord

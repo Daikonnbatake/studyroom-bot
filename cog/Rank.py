@@ -26,6 +26,9 @@ class Rank(commands.Cog):
             guilds = [self.bot.get_guild(gid) for gid in [int(i[:-4]) for i in os.listdir(self.root + '/log/voiceStateLog/')if i[0]!='d']]
 
             for guild in guilds:
+
+                if guild == None: continue
+
                 # ランク情報を更新
                 RankSys.updateRank(guild)
                 
