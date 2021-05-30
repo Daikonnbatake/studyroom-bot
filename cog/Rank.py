@@ -3,6 +3,7 @@ import discord
 import json
 import os
 import sys
+import time
 
 from discord.ext.commands.core import command
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -82,11 +83,19 @@ class Rank(commands.Cog):
                     await channel.send(embed=emb)
             
     
-    @tasks.loop(seconds=1)
+    @tasks.loop(seconds=10)
     async def autoUpdate(self):
         # 1日1回更新
-        if datetime.now(self.JST).strftime('%H:%M') == self.config['rankUpdate']['updateTime']:
-            await self._rank()
+        # lastRankUpadate.txt は自動更新が最後に行われた時間のUNIXtime
+        with open(self.root + '/log/system/lastRankUpadate.txt', 'r', encoding='utf-8') as f:
+            lastUpdate = int(f.read())
+        
+        if 60 < time.time() - lastUpdate:
+            if datetime.now(self.JST).strftime('%H:%M') == self.config['rankUpdate']['updateTime']:
+                await self._rank()
+
+                with open(self.root + '/log/system/lastRankUpadate.txt', 'w', encoding='utf-8') as f:
+                    f.write(str(int(time.time())))
 
     @commands.command()
     async def rank(self, ctx):

@@ -40,7 +40,8 @@ class EmbedKit:
             nowRrank = fixedRank[userName]['now']
             time = str(sum(value['activity'])//3600).zfill(3) + 'h'
 
-            if config['roles'][oldRrank] < config['roles'][nowRrank]: change = '昇格'
+            if oldRrank == '' or nowRrank == '': change = '新規'
+            elif config['roles'][oldRrank] < config['roles'][nowRrank]: change = '昇格'
             elif config['roles'][oldRrank] > config['roles'][nowRrank]: change = '降格'
             else: change = '維持'
             userName = userName if len(userName) <= 10 else userName[:11]
