@@ -28,8 +28,11 @@ class RankSys:
 
             userlr = dict()
             enable = config['rank_enable']['voice']
-            for userName, beforeSt, afterSt, timeStamp in csv.reader(f):
+            for data in csv.reader(f):
                 
+                if len(data) == 4: userName, beforeSt, afterSt, timeStamp = data
+                else: continue
+
                 # 7日以上前のログは参照しない
                 loggedDay = int(timeStamp)//day
                 if 6 < today - loggedDay: continue
