@@ -18,6 +18,7 @@ class Rank(commands.Cog):
         self.bot = bot
         self.root = os.path.dirname(__file__)[:-4]
         self.JST = timezone(timedelta(hours=+9), 'JST')
+        self.lastUpdate = 0
         with open(self.root + '/bot.conf', 'r', encoding='utf-8')as f:
             self.config = json.loads(f.read())
         self.autoUpdate.start()
@@ -146,12 +147,13 @@ class Rank(commands.Cog):
 
             # 全てのメンバーを更新
             for member in guild.members:
-                # fixedRank に含まれないメンバーは飛ばす
-                if not member.name in fixedRank: continue
+                # botは飛ばす
+                if not member.bot:
+                    fixedRank.pop(member.name)
+                    continue
 
-                activeTime = fixedRank['activity']
-                oldRank = fixedRank['oldRank']
-                nowRank = fixedRank['nowRank']
+                oldRank = fixedRank[member.name]['oldRank']
+                nowRank = fixedRank[member.name]['nowRank']
 
                 # ランクが変わっていないメンバーは飛ばす
                 if oldRank == nowRank: continue
@@ -170,10 +172,10 @@ class Rank(commands.Cog):
     @tasks.loop(seconds=10)
     async def autoUpdate(self):
         # 1日1回更新
-        # lastRankUpadate.txt は自動更新が最後に行われた時間のUNIXtime
-        
-        if datetime.now(self.JST).strftime('%H:%M') == self.config['rankUpdate']['updateTime']:
-            await self._rank()
+        if 70 < int(time.time()) - self.lastUpdate:
+            if datetime.now(self.JST).strftime('%H:%M') == self.config['rankUpdate']['updateTime']:
+                await self._fixRank()
+                self.lastUpdate = int(time.time())
 
     @commands.command()
     async def rank(self, ctx):
