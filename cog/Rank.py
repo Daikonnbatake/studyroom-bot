@@ -137,7 +137,7 @@ class Rank(commands.Cog):
     # ランク反映処理
     async def _fixRank(self):
         # Log を記録しているGuild をすべて取得
-        guilds = [self.bot.get_guild(int(guildID[:-5])) for guildID in os.listdir('%s/log/fixedRank/'%(self.root)) if guildID != 'dummy.json']
+        guilds = [self.bot.get_guild(int(guildID[:-5])) for guildID in os.listdir('%s/log/voiceStateLog/'%(self.root)) if guildID != 'dummy.json']
         
         # 全てのギルドを更新
         for guild in guilds:
