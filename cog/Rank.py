@@ -32,7 +32,6 @@ class Rank(commands.Cog):
         sortedRankRoles = sorted([[key,value] for key, value in self.config['rankRoles'].items()], key=lambda x: x[1])
         enableChannels = set(self.config['rankEnable']['voice'])
         voiceStateLogPath = '%s/log/voiceStateLog/%s.csv' % (self.root, guildID)
-        fixedRankPath = '%s/log/fixedRank/%s.json' %(self.root, guildID)
         futureVoiceStateLog = list()
         nowUnixTime = int(time.time())
         separateLogsForMembers = {member.name : [] for member in members}
@@ -109,10 +108,6 @@ class Rank(commands.Cog):
             if old < now: fixedRank[userName]['status'] = '昇格'
             elif old > now: fixedRank[userName]['status'] = '降格'
             else: fixedRank[userName]['status'] = '維持'
-        
-        with open(fixedRankPath, 'w', encoding='utf-8')as f:
-                jsonTxt = json.dumps(fixedRank, indent=2, ensure_ascii=False)
-                f.write(jsonTxt)
 
         return fixedRank
     
@@ -137,7 +132,7 @@ class Rank(commands.Cog):
     # ランク反映処理
     async def _fixRank(self):
         # Log を記録しているGuild をすべて取得
-        guilds = [self.bot.get_guild(int(guildID[:-5])) for guildID in os.listdir('%s/log/voiceStateLog/'%(self.root)) if guildID != 'dummy.json']
+        guilds = [self.bot.get_guild(int(guildID[:-4])) for guildID in os.listdir('%s/log/voiceStateLog/'%(self.root)) if guildID != 'dummy.csv']
         
         # 全てのギルドを更新
         for guild in guilds:
@@ -148,7 +143,7 @@ class Rank(commands.Cog):
             # 全てのメンバーを更新
             for member in guild.members:
                 # botは飛ばす
-                if not member.bot:
+                if member.bot:
                     fixedRank.pop(member.name)
                     continue
 
@@ -159,9 +154,9 @@ class Rank(commands.Cog):
                 if oldRank == nowRank: continue
 
                 # メンバーのロールを更新
-                for role in member.roles:
-                    if role.name == oldRank: await member.remove_role(role.id)
-                    if role.name == nowRank: await member.add_role(role.id)
+                for role in guild.roles:
+                    if role.name == oldRank: await member.remove_roles(role)
+                    if role.name == nowRank: await member.add_roles(role)
         
             # ランク反映通知を送る
             channels = guild.channels
