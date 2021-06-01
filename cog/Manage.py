@@ -19,7 +19,7 @@ class Manage(commands.Cog):
 
     # member オブジェクトが admin に該当するかを確認する
     def isAdmin(self, member):
-        return member.name in self.config['admin']
+        return member.name in self.config['bot']['admin']
 
     # Cogのリロード
     def _reloadCog(self):

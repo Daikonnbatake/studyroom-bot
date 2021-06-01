@@ -27,10 +27,10 @@ class Rank(commands.Cog):
     def _updateGuild(self, guild):
         guildID = guild.id
         members = guild.members
-        rankRoles = self.config['rankRoles']
+        rankRoles = self.config['rank']['roles']
         rankRoles[''] = -1
-        sortedRankRoles = sorted([[key,value] for key, value in self.config['rankRoles'].items()], key=lambda x: x[1])
-        enableChannels = set(self.config['rankEnable']['voice'])
+        sortedRankRoles = sorted([[key,value] for key, value in self.config['rank']['roles'].items()], key=lambda x: x[1])
+        enableChannels = set(self.config['rank']['enableChannel']['voice'])
         voiceStateLogPath = '%s/log/voiceStateLog/%s.csv' % (self.root, guildID)
         futureVoiceStateLog = list()
         nowUnixTime = int(time.time())
@@ -168,13 +168,13 @@ class Rank(commands.Cog):
     async def autoUpdate(self):
         # 1日1回更新
         if 70 < int(time.time()) - self.lastUpdate:
-            if datetime.now(self.JST).strftime('%H:%M') == self.config['rankUpdate']['updateTime']:
+            if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
                 await self._fixRank()
                 self.lastUpdate = int(time.time())
 
     @commands.command()
     async def rank(self, ctx):
-        if not ctx.author.name in self.config['admin']: return None
+        if not ctx.author.name in self.config['bot']['admin']: return None
         await self._fixRank()
 
 def setup(bot):
