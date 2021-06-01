@@ -171,6 +171,22 @@ class Rank(commands.Cog):
             if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
                 await self._fixRank()
                 self.lastUpdate = int(time.time())
+    
+    # VoiceStatus を監視するevent
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        user = member.name
+        beforeState = before.channel
+        afterState = after.channel
+        guildID = str(member.guild.id)
+
+        # 関係ないステータス更新は記録しない
+        if beforeState == afterState: return
+
+        with open(self.root+'/log/voiceStateLog/'+ guildID +'.csv', 'a', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            # log/voiceStateLog.csv のフォーマットは [ユーザー名, 遷移前のボイチャ名, 遷移後のボイチャ名, 遷移した時間]
+            writer.writerow([user, str(beforeState), str(afterState), str(int(time.time()))])
 
     @commands.command()
     async def rank(self, ctx):
