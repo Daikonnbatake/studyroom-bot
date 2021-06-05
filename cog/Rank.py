@@ -121,6 +121,11 @@ class Rank(commands.Cog):
             if old < now: fixedRank[userName]['status'] = '昇格'
             elif old > now: fixedRank[userName]['status'] = '降格'
             else: fixedRank[userName]['status'] = '維持'
+        
+        with open(voiceStateLogPath, 'w', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            for log in futureVoiceStateLog:
+                writer.writerow(log)
 
         return fixedRank
     
@@ -167,9 +172,9 @@ class Rank(commands.Cog):
                 if oldRank == nowRank: continue
 
                 # メンバーのロールを更新
-                for role in guild.roles:
-                    if role.name == oldRank: await member.remove_roles(role)
-                    if role.name == nowRank: await member.add_roles(role)
+                #for role in guild.roles:
+                #    if role.name == oldRank: await member.remove_roles(role)
+                #    if role.name == nowRank: await member.add_roles(role)
         
             # ランク反映通知を送る
             channels = guild.channels
