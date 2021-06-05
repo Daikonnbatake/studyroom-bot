@@ -7,6 +7,7 @@ import sys
 import time
 from discord import activity
 
+from collections import deque
 from discord.ext.commands.core import command
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -32,7 +33,7 @@ class Rank(commands.Cog):
         sortedRankRoles = sorted([[key,value] for key, value in self.config['rank']['roles'].items()], key=lambda x: x[1])
         enableChannels = set(self.config['rank']['enableChannel']['voice'])
         voiceStateLogPath = '%s/log/voiceStateLog/%s.csv' % (self.root, guildID)
-        futureVoiceStateLog = list()
+        futureVoiceStateLog = deque([])
         nowUnixTime = int(time.time())
         separateLogsForMembers = {member.name : [] for member in members}
         fixedRank = dict()
@@ -44,34 +45,37 @@ class Rank(commands.Cog):
             rank = [role.name for role in member.roles if role.name in rankRoles]
             rank = '' if rank == [] else rank[0]
             fixedRank[name] = {'activity':[0]*7, 'oldRank':rank, 'nowRank':'', 'status':'幽霊'}
+            logData = deque([])
 
         with open(voiceStateLogPath, 'r', encoding='utf-8') as voiceStateLog:
             
             for voiceStateLogOneLine in csv.reader(voiceStateLog):
 
                 # もし空行を読み取ったなら処理を飛ばす。
-                # 空でなければ変数に代入する。
-                if len(voiceStateLogOneLine)==4: userName, beforeSt, afterSt, timeStamp = voiceStateLogOneLine
+                # 空でなければリストに追加する。
+                if len(voiceStateLogOneLine)==4: logData.appendleft(voiceStateLogOneLine)
                 else:continue
+        
+        for userName, beforeSt, afterSt, timeStamp in logData:
 
-                timeStamp = int(timeStamp)
+            timeStamp = int(timeStamp)
 
-                # 7日以上前のログは参照しない
-                if 6 < (nowUnixTime - timeStamp)//day: continue
+            # 7日以上前のログは参照しない
+            if 6 < (nowUnixTime - timeStamp) // day: continue
 
-                # ランク対象外のボイスチャンネルの入退室はカウントしない
-                if (not beforeSt in enableChannels) and (not afterSt in enableChannels): continue
-                
-                # ユーザーごとにログを振り分ける
-                separateLogsForMembers[userName].append([beforeSt, afterSt, timeStamp])
+            # ランク対象外のボイスチャンネルの入退室はカウントしない
+            if (not beforeSt in enableChannels) and (not afterSt in enableChannels): continue
+            
+            # ユーザーごとにログを振り分ける
+            separateLogsForMembers[userName].append([beforeSt, afterSt, timeStamp])
 
-                # voiceStateLog に最終的に反映される7日以上前のログを排除した新しいログ
-                futureVoiceStateLog.append([userName, beforeSt, afterSt, timeStamp])
+            # voiceStateLog に最終的に反映される7日以上前のログを排除した新しいログ
+            futureVoiceStateLog.appendleft([userName, beforeSt, afterSt, timeStamp])
         
         # ユーザー毎のアクティビティを求め、fixedRank を作成する
         for userName, logs in separateLogsForMembers.items():
             
-            _in, _active = 0, False
+            _in, _out, _active = 0, 0, False
             
             # もしアクティビティのないメンバーならこの処理を飛ばす
             if len(logs) == 0 :
@@ -80,16 +84,25 @@ class Rank(commands.Cog):
             
             for beforeSt, afterSt, timeStamp in logs:
 
-                if _active and (afterSt in enableChannels):
-                    _active = True
-
-                elif _active and (beforeSt in enableChannels):
-                    fixedRank[userName]['activity'][(nowUnixTime - timeStamp) // day] += timeStamp - _in
+                # 通常の入室ログが来た場合
+                if _active and (afterSt in enableChannels) and (not beforeSt in enableChannels):
+                    fixedRank[userName]['activity'][(nowUnixTime - timeStamp) // day] += _out - timeStamp
                     _active = False
 
-                else:
-                    _in = timeStamp
+                # 通常の退室ログが来た場合
+                elif (not _active) and (beforeSt in enableChannels) and (not afterSt in enableChannels):
+                    _out = timeStamp
                     _active = True
+                
+                # ランク更新が入室中に掛かった場合
+                elif (not _active) and (afterSt in enableChannels) and (not beforeSt in enableChannels):
+                    fixedRank[userName]['activity'][0] += nowUnixTime - timeStamp + _in
+                    _in = timeStamp
+
+            # ランク有効期間外からのアクティビティがあった場合
+            if _active and (beforeSt in enableChannels) and (not afterSt in enableChannels):
+                fixedRank[userName]['activity'][-1] += timeStamp - (nowUnixTime - (day * 7))
+
             
             # 称号の条件(時間) <= アクティブタイム を満たす最大の 称号を fixedRank['nowRank'] に設定する
             # もしアクティビティがないなら 称号は無し
@@ -97,7 +110,7 @@ class Rank(commands.Cog):
             activeTime = sum(fixedRank[userName]['activity'])
             
             for rank, value in sortedRankRoles:
-                if activeTime//7 < value: break
+                if activeTime//7 <= value: break
                 fixedRank[userName]['nowRank'] = rank
             
             # 昇格/維持/降格 を反映
@@ -108,6 +121,11 @@ class Rank(commands.Cog):
             if old < now: fixedRank[userName]['status'] = '昇格'
             elif old > now: fixedRank[userName]['status'] = '降格'
             else: fixedRank[userName]['status'] = '維持'
+        
+        with open(voiceStateLogPath, 'w', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            for log in futureVoiceStateLog:
+                writer.writerow(log)
 
         return fixedRank
     
@@ -154,9 +172,9 @@ class Rank(commands.Cog):
                 if oldRank == nowRank: continue
 
                 # メンバーのロールを更新
-                for role in guild.roles:
-                    if role.name == oldRank: await member.remove_roles(role)
-                    if role.name == nowRank: await member.add_roles(role)
+                #for role in guild.roles:
+                #    if role.name == oldRank: await member.remove_roles(role)
+                #    if role.name == nowRank: await member.add_roles(role)
         
             # ランク反映通知を送る
             channels = guild.channels
