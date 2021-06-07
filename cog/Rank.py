@@ -1,14 +1,15 @@
-from asyncio import tasks
 import csv
 import discord
+import io
 import json
 import os
+import requests
 import sys
 import time
-from discord import activity
 
+from asyncio import tasks
 from collections import deque
-from discord.ext.commands.core import command
+from PIL import Image, ImageFilter, ImageDraw, ImageFont
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, timedelta, timezone
@@ -20,7 +21,8 @@ class Rank(commands.Cog):
         self.root = os.path.dirname(__file__)[:-4]
         self.JST = timezone(timedelta(hours=+9), 'JST')
         self.lastUpdate = 0
-        with open(self.root + '/bot.conf', 'r', encoding='utf-8')as f:
+        self.imagePath = '%s/img' % self.root
+        with open('%s/bot.conf' % self.root, 'r', encoding='utf-8')as f:
             self.config = json.loads(f.read())
         self.autoUpdate.start()
 
@@ -172,9 +174,9 @@ class Rank(commands.Cog):
                 if oldRank == nowRank: continue
 
                 # メンバーのロールを更新
-                #for role in guild.roles:
-                #    if role.name == oldRank: await member.remove_roles(role)
-                #    if role.name == nowRank: await member.add_roles(role)
+                for role in guild.roles:
+                    if role.name == oldRank: await member.remove_roles(role)
+                    if role.name == nowRank: await member.add_roles(role)
         
             # ランク反映通知を送る
             channels = guild.channels
@@ -206,10 +208,69 @@ class Rank(commands.Cog):
             # log/voiceStateLog.csv のフォーマットは [ユーザー名, 遷移前のボイチャ名, 遷移後のボイチャ名, 遷移した時間]
             writer.writerow([user, str(beforeState), str(afterState), str(int(time.time()))])
 
+    # ユーザー毎の詳細な戦績を表示するコマンド
+    # mee6 の !rank みたいな画像を出す
     @commands.command()
-    async def rank(self, ctx):
-        if not ctx.author.name in self.config['bot']['admin']: return None
-        await self._fixRank()
+    async def rank(self, ctx, user=None):
+        user = ctx.author.name if user == None else user
+        avatarURL = ctx.message.author.avatar_url
+        
+        if not user in [member.name for member in ctx.guild.members]: return
+        
+        # アバター取得
+        for member in ctx.guild.members:
+            if member.name == user:
+                avatarURL = member.avatar_url
+
+        baseImagePath = '%s/rank_base.png' % self.imagePath
+        avatarMaskPath = '%s/avatar_mask.png' % self.imagePath
+        savePath = '%s/%s.png' % (self.imagePath, ctx.author.id)
+        fixedRank = self._updateGuild(ctx.guild)[user]
+        defaultColor = (185, 187, 190)
+        rankColor = defaultColor
+
+        # ランクの色を取得
+        for role in ctx.guild.roles:
+            if role.name == fixedRank['nowRank']:
+                color = role.color
+                rankColor = (color.r, color.g, color.b)
+
+        image = Image.open(baseImagePath)
+        avatar = Image.open(io.BytesIO(requests.get(avatarURL).content)).convert('RGBA')
+        
+        # ユーザーアイコンの整形
+        avatarBase = Image.new('RGBA', (64, 64), (54, 57, 63, 255))
+        draw = ImageDraw.Draw(avatarBase)
+        draw.ellipse((0, 0, 64, 64), fill=(47, 49, 54))
+        avatarMask = Image.open(avatarMaskPath).convert('1')
+        avatar = avatar.resize((64, 64), Image.HAMMING)
+        avatar = Image.composite(avatar, avatarBase, avatarMask)
+        avatar = Image.alpha_composite(avatarBase, avatar)
+
+        # テキスト定義
+        #nfontPath = '%s/font/MEIRYO.TTC' % self.root
+        bfontPath = '%s/font/MEIRYOB.TTC' % self.root
+
+        # 合成
+        draw = ImageDraw.Draw(image)
+        memberNameFont = ImageFont.truetype(bfontPath, 24)
+        nomalFont = ImageFont.truetype(bfontPath, 14)
+
+        image.paste(avatar, (21, 17))
+        draw.text((100, 18), user, (255, 255, 255, 255), font=memberNameFont)
+        draw.text((100, 48), fixedRank['nowRank'], rankColor, font=nomalFont)
+        draw.text((20, 104), '過去7日間の自習時間: %s h' % (sum(fixedRank['activity'])//3600), defaultColor, font=nomalFont)
+        draw.rectangle((102, 72, 250*(sum(fixedRank['activity'])/(3600*14)%1) + 102, 77), fill=rankColor)
+
+        now=datetime.now(timezone(timedelta(hours=+9), 'JST'))
+        for i in range(7):
+            d = now - timedelta(days=i)
+            draw.text((355+(-i * 52), 245), '%s/%s' % (d.month, d.day), defaultColor, font=nomalFont, anchor='ma')
+            draw.text((355+(-i * 52), 230 - (fixedRank['activity'][i]*3//3600)), '%sh' % (fixedRank['activity'][i]//3600), defaultColor, font=nomalFont, anchor='mb')
+            draw.rectangle((340+(-i * 52), 240 - fixedRank['activity'][i]*3//3600, 370+(-i * 52), 240), fill=defaultColor)
+
+        image.save(savePath)
+        await ctx.send(file=discord.File(savePath))
 
 def setup(bot):
     bot.add_cog(Rank(bot))
