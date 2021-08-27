@@ -2,11 +2,10 @@ import discord
 import json
 import os
 
-from datetime import datetime, timedelta, timezone
-from discord import embeds
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from discord.ext import commands
-from discord.ext.commands import bot
-from discord.ext.commands.core import command
 
 class Manage(commands.Cog):
 
