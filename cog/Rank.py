@@ -217,14 +217,24 @@ class Rank(commands.Cog):
     # mee6 の !rank みたいな画像を出す
     @commands.command()
     async def rank(self, ctx, user=None):
-        user = ctx.author.name if user == None else user
+        userName = ctx.author.name if user == None else user
+        user = ''
+
+        if user == None:
+            user = ctx.author.id
+
+        else:
+            for member in ctx.guild.members:
+                if member.name == user:
+                    user = member.id
+
         avatarURL = ctx.message.author.avatar_url
         
-        if not user in [member.name for member in ctx.guild.members]: return
+        if not user in [member.id for member in ctx.guild.members]: return
         
         # アバター取得
         for member in ctx.guild.members:
-            if member.name == user:
+            if member.id == user:
                 avatarURL = member.avatar_url
 
         baseImagePath = '%s/rank_base.png' % self.imagePath
@@ -262,7 +272,7 @@ class Rank(commands.Cog):
         nomalFont = ImageFont.truetype(bfontPath, 14)
 
         image.paste(avatar, (21, 17))
-        draw.text((100, 18), user, (255, 255, 255, 255), font=memberNameFont)
+        draw.text((100, 18), userName, (255, 255, 255, 255), font=memberNameFont)
         draw.text((100, 48), fixedRank['nowRank'], rankColor, font=nomalFont)
         draw.text((20, 104), '過去7日間の自習時間: %s h' % (sum(fixedRank['activity'])//3600), defaultColor, font=nomalFont)
         draw.rectangle((102, 72, 250*(sum(fixedRank['activity'])/(3600*14)%1) + 102, 77), fill=rankColor)
