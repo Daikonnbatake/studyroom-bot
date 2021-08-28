@@ -218,6 +218,14 @@ class Rank(commands.Cog):
     @commands.command()
     async def rank(self, ctx, user=None):
         user = ctx.author.name if user == None else user
+        userid = 0
+        if user == None:
+            userid = ctx.author.id
+        else:
+            for member in ctx.guild.members:
+                if member.name == user:
+                    userid = ctx.author.id
+
         avatarURL = ctx.message.author.avatar_url
         
         if not user in [member.name for member in ctx.guild.members]: return
@@ -230,7 +238,7 @@ class Rank(commands.Cog):
         baseImagePath = '%s/rank_base.png' % self.imagePath
         avatarMaskPath = '%s/avatar_mask.png' % self.imagePath
         savePath = '%s/%s.png' % (self.imagePath, ctx.author.id)
-        fixedRank = self._updateGuild(ctx.guild)[user]
+        fixedRank = self._updateGuild(ctx.guild)[userid]
         defaultColor = (185, 187, 190)
         rankColor = defaultColor
 
