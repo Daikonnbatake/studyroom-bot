@@ -28,6 +28,19 @@ class Rank(commands.Cog):
         with open('%s/bot.conf' % self.root, 'r', encoding='utf-8')as f:
             self.config = json.loads(f.read())
         self.autoUpdate.start()
+    
+    # 暦上の何日前か求める
+    def _howManyDaysAgo(self, fromTime, today):
+        day = 86400
+        ret = (today + day - fromTime) //day
+        return ret
+
+    # 日を跨ぐアクティビティを正常に出力する
+    def _straddle(self, before, now):
+        day = 86400
+        today = now // day * day
+        if (before % day) <= (now % day):return (now - before, 0)
+        else: return (today-before, now-today)
 
     # guildごとのランク更新処理
     def _updateGuild(self, guild):
@@ -50,7 +63,7 @@ class Rank(commands.Cog):
             userId = member.id
             rank = [role.name for role in member.roles if role.name in rankRoles]
             rank = '' if rank == [] else rank[0]
-            fixedRank[userId] = {'name':member.name, 'activity':[0]*7, 'oldRank':rank, 'nowRank':'', 'status':'幽霊'}
+            fixedRank[userId] = {'name':member.name, 'activity':[0]*8, 'oldRank':rank, 'nowRank':'', 'status':'幽霊'}
             logData = []
 
         with open(voiceStateLogPath, 'r', encoding='utf-8') as voiceStateLog:
@@ -98,17 +111,27 @@ class Rank(commands.Cog):
                     # 通常
                     if _active:
                         _active = False
-                        fixedRank[userId]['activity'][0] += _out - timeStamp
+                        index = self._howManyDaysAgo(timeStamp, today)
+                        straddle = self._straddle(timeStamp, _out)
+                        fixedRank[userId]['activity'][index] += straddle[1]
+                        fixedRank[userId]['activity'][index+1] += straddle[0]
                     # ボイチャ接続中に更新がかかった場合
                     else:
-                        fixedRank[userId]['activity'][0] += nowUnixTime - timeStamp
+                        index = self._howManyDaysAgo(timeStamp, today)
+                        straddle = self._straddle(timeStamp, nowUnixTime)
+                        print(userId, straddle)
+                        fixedRank[userId]['activity'][index] += straddle[1]
+                        fixedRank[userId]['activity'][index+1] += straddle[0]
 
                 # 退室
                 elif (beforeSt in enableChannels) and (not afterSt in enableChannels):
                     # ランク範囲外を跨ぐアクティビティの退室処理(最古のログが退室の場合)
                     if _count==len(logs):
-                        fixedRank[userId]['activity'][0] += timeStamp - (today - (day*7))
-
+                        # fixedRank[userId]['activity'][self._howManyDaysAgo(timeStamp, today)] += timeStamp - (today - (day*7))
+                        index = self._howManyDaysAgo(timeStamp, today)
+                        straddle = self._straddle(today - (day*7), timeStamp)
+                        fixedRank[userId]['activity'][index] += straddle[1]
+                        fixedRank[userId]['activity'][index+1] += straddle[0]
                     # 通常
                     else:
                         _out = timeStamp
@@ -119,7 +142,6 @@ class Rank(commands.Cog):
             # もしアクティビティがないなら 称号は無し
 
             activeTime = sum(fixedRank[userId]['activity'])
-            print(userId, activeTime)
 
             for rank, value in sortedRankRoles:
                 if activeTime//7 <= value: break
@@ -191,11 +213,13 @@ class Rank(commands.Cog):
                 if channel.name == self.config['announce']['channel']:
                     await channel.send(embed=self._createGuildMessage(fixedRank))
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(seconds=1)
     async def autoUpdate(self):
         # 1日1回更新
-        if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
-            await self._fixRank()
+        if int(time.time()) - self.lastUpdate < 1000:
+            if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
+                self.lastUpdate = int(time.time())
+                await self._fixRank()
 
     # VoiceStatus を監視するevent
     @commands.Cog.listener()
@@ -217,14 +241,15 @@ class Rank(commands.Cog):
     # mee6 の !rank みたいな画像を出す
     @commands.command()
     async def rank(self, ctx, user=None):
-        user = ctx.author.name if user == None else user
         userid = 0
         if user == None:
             userid = ctx.author.id
         else:
             for member in ctx.guild.members:
                 if member.name == user:
-                    userid = ctx.author.id
+                    userid = member.id
+
+        user = ctx.author.name if user == None else user
 
         avatarURL = ctx.message.author.avatar_url
         
@@ -279,10 +304,11 @@ class Rank(commands.Cog):
         for i in range(7):
             d = now - timedelta(days=i)
             draw.text((355+(-i * 52), 245), '%s/%s' % (d.month, d.day), defaultColor, font=nomalFont, anchor='ma')
-            draw.text((355+(-i * 52), 230 - (fixedRank['activity'][i]*3//3600)), '%sh' % (fixedRank['activity'][i]//3600), defaultColor, font=nomalFont, anchor='mb')
-            draw.rectangle((340+(-i * 52), 240 - fixedRank['activity'][i]*3//3600, 370+(-i * 52), 240), fill=defaultColor)
+            draw.text((355+(-i * 52), 230 - (fixedRank['activity'][i+1]*3//3600)), '%sh' % (fixedRank['activity'][i+1]//3600), defaultColor, font=nomalFont, anchor='mb')
+            draw.rectangle((340+(-i * 52), 240 - fixedRank['activity'][i+1]*3//3600, 370+(-i * 52), 240), fill=defaultColor)
 
         image.save(savePath)
+        print(userid, fixedRank['activity'])
         await ctx.send(file=discord.File(savePath))
 
 def setup(bot):
