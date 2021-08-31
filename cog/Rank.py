@@ -213,11 +213,13 @@ class Rank(commands.Cog):
                 if channel.name == self.config['announce']['channel']:
                     await channel.send(embed=self._createGuildMessage(fixedRank))
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(seconds=1)
     async def autoUpdate(self):
         # 1日1回更新
-        if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
-            await self._fixRank()
+        if int(time.time()) - self.lastUpdate < 1000:
+            if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
+                self.lastUpdate = int(time.time())
+                await self._fixRank()
 
     # VoiceStatus を監視するevent
     @commands.Cog.listener()
