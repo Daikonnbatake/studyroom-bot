@@ -216,7 +216,7 @@ class Rank(commands.Cog):
     @tasks.loop(seconds=1)
     async def autoUpdate(self):
         # 1日1回更新
-        if int(time.time()) - self.lastUpdate < 1000:
+        if 1000 < int(time.time()) - self.lastUpdate:
             if datetime.now(self.JST).strftime('%H:%M') == self.config['rank']['updateTime']:
                 self.lastUpdate = int(time.time())
                 await self._fixRank()
