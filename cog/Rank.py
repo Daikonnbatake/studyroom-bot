@@ -32,14 +32,14 @@ class Rank(commands.Cog):
     # 暦上の何日前か求める
     def _howManyDaysAgo(self, fromTime, today):
         day = 86400
-        ret = (today + day - fromTime) //day
+        ret = (today - fromTime) //day
         return ret
 
     # 日を跨ぐアクティビティを正常に出力する
     def _straddle(self, before, now):
         day = 86400
         today = now // day * day
-        if (before % day) <= (now % day):return (now - before, 0)
+        if (before % day) <= (now % day):return (0, now - before)
         else: return (today-before, now-today)
 
     # guildごとのランク更新処理
@@ -113,15 +113,14 @@ class Rank(commands.Cog):
                         _active = False
                         index = self._howManyDaysAgo(timeStamp, today)
                         straddle = self._straddle(timeStamp, _out)
-                        fixedRank[userId]['activity'][index] += straddle[1]
-                        fixedRank[userId]['activity'][index+1] += straddle[0]
+                        fixedRank[userId]['activity'][index] += straddle[0]
+                        fixedRank[userId]['activity'][index+1] += straddle[1]
                     # ボイチャ接続中に更新がかかった場合
                     else:
                         index = self._howManyDaysAgo(timeStamp, today)
                         straddle = self._straddle(timeStamp, nowUnixTime)
-                        print(userId, straddle)
-                        fixedRank[userId]['activity'][index] += straddle[1]
-                        fixedRank[userId]['activity'][index+1] += straddle[0]
+                        fixedRank[userId]['activity'][index] += straddle[0]
+                        fixedRank[userId]['activity'][index+1] += straddle[1]
 
                 # 退室
                 elif (beforeSt in enableChannels) and (not afterSt in enableChannels):
@@ -130,8 +129,8 @@ class Rank(commands.Cog):
                         # fixedRank[userId]['activity'][self._howManyDaysAgo(timeStamp, today)] += timeStamp - (today - (day*7))
                         index = self._howManyDaysAgo(timeStamp, today)
                         straddle = self._straddle(today - (day*7), timeStamp)
-                        fixedRank[userId]['activity'][index] += straddle[1]
-                        fixedRank[userId]['activity'][index+1] += straddle[0]
+                        fixedRank[userId]['activity'][index] += straddle[0]
+                        fixedRank[userId]['activity'][index+1] += straddle[1]
                     # 通常
                     else:
                         _out = timeStamp
@@ -300,12 +299,12 @@ class Rank(commands.Cog):
         draw.text((20, 104), '過去7日間の自習時間: %s h' % (sum(fixedRank['activity'])//3600), defaultColor, font=nomalFont)
         draw.rectangle((102, 72, 250*(sum(fixedRank['activity'])/(3600*14)%1) + 102, 77), fill=rankColor)
 
-        now=datetime.now(timezone(timedelta(hours=+9), 'JST'))
+        now=datetime.now()
         for i in range(7):
             d = now - timedelta(days=i)
             draw.text((355+(-i * 52), 245), '%s/%s' % (d.month, d.day), defaultColor, font=nomalFont, anchor='ma')
-            draw.text((355+(-i * 52), 230 - (fixedRank['activity'][i+1]*3//3600)), '%sh' % (fixedRank['activity'][i+1]//3600), defaultColor, font=nomalFont, anchor='mb')
-            draw.rectangle((340+(-i * 52), 240 - fixedRank['activity'][i+1]*3//3600, 370+(-i * 52), 240), fill=defaultColor)
+            draw.text((355+(-i * 52), 230 - (fixedRank['activity'][i]*3//3600)), '%sh' % (fixedRank['activity'][i]//3600), defaultColor, font=nomalFont, anchor='mb')
+            draw.rectangle((340+(-i * 52), 240 - fixedRank['activity'][i]*3//3600, 370+(-i * 52), 240), fill=defaultColor)
 
         image.save(savePath)
         print(userid, fixedRank['activity'])
